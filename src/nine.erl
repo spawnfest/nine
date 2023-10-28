@@ -183,10 +183,18 @@ codegen_method_clause(Path, Method, Behavior) ->
        {var, 0, 'Req'},
        {map,
         0,
-        [{map_field_exact, 0, {atom, 0, method}, {atom, 0, Method}},
+        [{map_field_exact, 0, {atom, 0, method}, codegen_method_value(Method)},
          {map_field_exact, 0, {atom, 0, path}, Path}]}}],
      [],
      Behavior}.
+
+codegen_method_value(Method) ->
+    case Method of
+        '_Method' = M ->
+            {var, 0, M};
+        M ->
+            {atom, 0, M}
+    end.
 
 -spec translate_method(binary()) -> atom().
 translate_method(<<"GET">>) ->
@@ -198,7 +206,9 @@ translate_method(<<"PUT">>) ->
 translate_method(<<"PATCH">>) ->
     'PATCH';
 translate_method(<<"DELETE">>) ->
-    'DELETE'.
+    'DELETE';
+translate_method(<<"*">>) ->
+    '_Method'.
 
 -ifdef(TEST).
 
