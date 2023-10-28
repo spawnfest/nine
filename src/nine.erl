@@ -60,44 +60,39 @@ codegen_get_path() ->
     {call, 0, {remote, 0, {atom, 0, elli_request}, {atom, 0, path}}, [{var, 0, 'Req'}]}.
 
 config_to_routes(Config) ->
-    config_to_routes(<<"">>, Config).
+    lists:flatten(config_to_routes2(<<"">>, Config)).
 
-config_to_routes(ParentPath, [_ | _] = Config) ->
+config_to_routes2(ParentPath, [_ | _] = Config) ->
     {MidBefore, Config2, MidAfter} = split_middleware_config(Config),
-    lists:flatten(
-        lists:map(fun({Path, PathConfig}) ->
-                     NewPath = list_to_binary([ParentPath, Path]),
-                     case is_path_method_config(PathConfig) of
-                         true ->
-                             PathConfig2 =
-                                 case PathConfig of
-                                     [_ | _] = Pc ->
-                                         MidBefore ++ Pc ++ MidAfter;
-                                     #{} = Pc ->
-                                         MidBefore ++ [Pc] ++ MidAfter
-                                 end,
-                             extract_path_method_handlers({NewPath, PathConfig2});
-                         false ->
-                             ok
-                     end
-                  end,
-                  maps:to_list(Config2)));
-config_to_routes(ParentPath, Config) ->
-    lists:flatten(
-        lists:map(fun({Path, PathConfig}) ->
-                     NewPath = list_to_binary([ParentPath, Path]),
-                     case is_path_method_config(PathConfig) of
-                         true ->
-                             extract_path_method_handlers({NewPath, PathConfig});
-                         false ->
-                             config_to_routes(NewPath, PathConfig)
-                     end
-                  end,
-                  maps:to_list(Config))).
+    config_to_routes_helper(ParentPath, Config2, MidBefore, MidAfter);
+config_to_routes2(ParentPath, #{} = Config) ->
+    config_to_routes_helper(ParentPath, Config, [], []).
 
-extract_path_method_handlers({Path0, PathConfig}) ->
-    Path = codegen_path(parse_path(Path0)),
-    extract_method_handlers(Path, PathConfig).
+config_to_routes_helper(ParentPath, Config, MidBefore, MidAfter) ->
+    lists:map(fun({K, V}) ->
+                 NewPath = list_to_binary([ParentPath, K]),
+                 case is_path_method_config(V) of
+                     true ->
+                         case V of
+                             #{} = V2 ->
+                                 extract_method_handlers(NewPath, MidBefore ++ [V2] ++ MidAfter);
+                             [_ | _] = V2 ->
+                                 extract_method_handlers(NewPath, MidBefore ++ V2 ++ MidAfter)
+                         end;
+                     false ->
+                         case V of
+                             #{} = V2 ->
+                                 config_to_routes_helper(NewPath, V2, MidBefore, MidAfter);
+                             [_ | _] = V2 ->
+                                 {MB2, C2, MA2} = split_middleware_config(V2),
+                                 config_to_routes_helper(NewPath,
+                                                         C2,
+                                                         MidBefore ++ MB2,
+                                                         MA2 ++ MidAfter)
+                         end
+                 end
+              end,
+              maps:to_list(Config)).
 
 extract_method_handlers(Path, PathConfig = [_ | _]) ->
     {MidBefore, Config, MidAfter} = split_middleware_config(PathConfig),
@@ -112,13 +107,7 @@ extract_method_handlers(Path, PathConfig = [_ | _]) ->
                  Behavior = method_config_to_behavior(MethodConfig2),
                  {Path, translate_method(M), Behavior}
               end,
-              maps:to_list(Config));
-extract_method_handlers(Path, PathConfig = #{}) ->
-    lists:map(fun({M, MethodConfig}) ->
-                 Behavior = method_config_to_behavior(MethodConfig),
-                 {Path, translate_method(M), Behavior}
-              end,
-              maps:to_list(PathConfig)).
+              maps:to_list(Config)).
 
 is_path_method_config(Config = #{}) ->
     lists:foldl(fun(K, Acc) ->
@@ -165,8 +154,6 @@ split_middleware_config([Item | Rest], Before, undefined, undefined) ->
 split_middleware_config([Item | Rest], Before, Config, After) ->
     split_middleware_config(Rest, Before, Config, [Item | After]).
 
-method_config_to_behavior({Module, Function}) ->
-    [{call, 0, {remote, 0, {atom, 0, Module}, {atom, 0, Function}}, [{var, 0, 'Req'}]}];
 method_config_to_behavior([_ | _] = Middleware) ->
     middleware_to_behavior(Middleware).
 
@@ -200,7 +187,8 @@ codegen_handle_req(Module, Function, Req) ->
 codegen_routes(Routes) ->
     [{function, 0, handle, 1, lists:map(fun codegen_route/1, Routes)}].
 
-codegen_route({Path, Method, Behavior}) ->
+codegen_route({Path0, Method, Behavior}) ->
+    Path = codegen_path(parse_path(Path0)),
     codegen_method_clause(Path, Method, Behavior).
 
 parse_path(<<"*">>) ->
@@ -235,7 +223,7 @@ codegen_method_clause(Path, Method, Behavior) ->
      [],
      Behavior}.
 
-codegen_method_clause_helper(<<"_">>, Method) ->
+codegen_method_clause_helper(<<"*">>, Method) ->
     [{map_field_exact, 0, {atom, 0, method}, codegen_method_value(Method)}];
 codegen_method_clause_helper(Path, Method) ->
     [{map_field_exact, 0, {atom, 0, method}, codegen_method_value(Method)},
