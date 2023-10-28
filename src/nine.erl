@@ -155,10 +155,14 @@ codegen_routes(Routes) ->
 codegen_route({Path, Method, Behavior}) ->
     codegen_method_clause(Path, Method, Behavior).
 
+parse_path(<<"*">>) ->
+    <<"*">>;
 parse_path(Path0) ->
     [_ | Rest] = string:split(Path0, "/", all),
     Rest.
 
+codegen_path(<<"*">>) ->
+    <<"*">>;
 codegen_path([<<>>]) ->
     {nil, 0};
 codegen_path([[]]) ->
@@ -175,18 +179,19 @@ codegen_path([B | Rest], Acc) ->
                   {bin, 0, [{bin_element, 0, {string, 0, binary_to_list(B)}, default, default}]},
                   Acc}).
 
+%% TODO: change name method to something else
 codegen_method_clause(Path, Method, Behavior) ->
     {clause,
      0,
-     [{match,
-       0,
-       {var, 0, 'Req'},
-       {map,
-        0,
-        [{map_field_exact, 0, {atom, 0, method}, codegen_method_value(Method)},
-         {map_field_exact, 0, {atom, 0, path}, Path}]}}],
+     [{match, 0, {var, 0, 'Req'}, {map, 0, codegen_method_clause_helper(Path, Method)}}],
      [],
      Behavior}.
+
+codegen_method_clause_helper(<<"*">>, Method) ->
+    [{map_field_exact, 0, {atom, 0, method}, codegen_method_value(Method)}];
+codegen_method_clause_helper(Path, Method) ->
+    [{map_field_exact, 0, {atom, 0, method}, codegen_method_value(Method)},
+     {map_field_exact, 0, {atom, 0, path}, Path}].
 
 codegen_method_value(Method) ->
     case Method of
