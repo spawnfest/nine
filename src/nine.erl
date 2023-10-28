@@ -22,7 +22,7 @@ elli_exports() ->
     [{attribute, 0, export, [{handle, 2}, {handle_event, 3}]}].
 
 routes_map_to_methods(Config) ->
-    codegen_handle() ++ codegen_handle_event() ++ codegen_routes(Config).
+    codegen_handle() ++ codegen_handle_event() ++ codegen_routes(config_to_routes(Config)).
 
 codegen_handle_event() ->
     [{function,
@@ -59,18 +59,29 @@ codegen_get_method() ->
 codegen_get_path() ->
     {call, 0, {remote, 0, {atom, 0, elli_request}, {atom, 0, path}}, [{var, 0, 'Req'}]}.
 
-codegen_routes(Config) ->
-    [{function,
-      0,
-      handle,
-      1,
-      maps:fold(fun(K, V, Acc) -> [codegen_method_clause(K, V)] ++ Acc end, [], Config)}].
+config_to_routes(Config) ->
+    lists:flatten(
+        lists:map(fun extract_path_method_handlers/1, maps:to_list(Config))).
 
-codegen_method_clause(K, V) ->
-    Path0 = parse_path(K),
-    Path = codegen_path(Path0),
-    {Method, Handler} = extract_method_handler(V),
-    Behavior = handler_to_behavior(Handler),
+extract_path_method_handlers({Path0, PathConfig}) ->
+    Path = codegen_path(parse_path(Path0)),
+    extract_method_handlers(Path, PathConfig).
+
+extract_method_handlers(Path, PathConfig) ->
+    lists:map(fun({M, MethodConfig}) ->
+                 Handler = extract_method_handler(MethodConfig),
+                 Behavior = handler_to_behavior(Handler),
+                 {Path, translate_method(M), Behavior}
+              end,
+              maps:to_list(PathConfig)).
+
+extract_method_handler(MethodConfig) ->
+    MethodConfig.
+
+codegen_routes(Routes) ->
+    [{function, 0, handle, 1, lists:map(fun codegen_route/1, Routes)}].
+
+codegen_route({Path, Method, Behavior}) ->
     codegen_method_clause(Path, Method, Behavior).
 
 parse_path(Path0) ->
@@ -92,10 +103,6 @@ codegen_path([B | Rest], Acc) ->
                   0,
                   {bin, 0, [{bin_element, 0, {string, 0, binary_to_list(B)}, default, default}]},
                   Acc}).
-
-extract_method_handler(MethodConfig) ->
-    [{Method, Handler}] = maps:to_list(MethodConfig),
-    {translate_method(Method), Handler}.
 
 handler_to_behavior({Module, Function}) ->
     [{call, 0, {remote, 0, {atom, 0, Module}, {atom, 0, Function}}, [{var, 0, 'Req'}]}].
