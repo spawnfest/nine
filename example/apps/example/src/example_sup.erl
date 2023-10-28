@@ -37,4 +37,6 @@ init([]) ->
 
 %% internal functions
 routes() ->
-    #{<<"/todos">> => #{<<"GET">> => {example_handler, get}}}.
+    #{<<"/todos">> => #{<<"GET">> => {example_handler, get}},
+      <<"/foo">> => #{<<"GET">> => {example_handler, get}},
+      <<"/">> => #{<<"GET">> => {example_handler, get}}}.

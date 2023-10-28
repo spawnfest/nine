@@ -77,6 +77,10 @@ parse_path(Path0) ->
     [_ | Rest] = string:split(Path0, "/", all),
     Rest.
 
+codegen_path([<<>>]) ->
+    {nil, 0};
+codegen_path([[]]) ->
+    {nil, 0};
 codegen_path(Path) ->
     codegen_path(lists:reverse(Path), {nil, 0}).
 
