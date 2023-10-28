@@ -69,14 +69,42 @@ extract_path_method_handlers({Path0, PathConfig}) ->
 
 extract_method_handlers(Path, PathConfig) ->
     lists:map(fun({M, MethodConfig}) ->
-                 Handler = extract_method_handler(MethodConfig),
-                 Behavior = handler_to_behavior(Handler),
+                 Behavior = method_config_to_behavior(MethodConfig),
                  {Path, translate_method(M), Behavior}
               end,
               maps:to_list(PathConfig)).
 
-extract_method_handler(MethodConfig) ->
-    MethodConfig.
+method_config_to_behavior({Module, Function}) ->
+    [{call, 0, {remote, 0, {atom, 0, Module}, {atom, 0, Function}}, [{var, 0, 'Req'}]}];
+method_config_to_behavior([_ | _] = Middleware) ->
+    middleware_to_behavior(Middleware).
+
+middleware_to_behavior(Middleware) ->
+    middleware_to_behavior(Middleware, [], 0).
+
+middleware_to_behavior([], Acc, Counter) ->
+    lists:reverse([{var, 0, req_atom(Counter)} | Acc]);
+middleware_to_behavior([{Module, Function} | Middleware], Acc, Counter) ->
+    Acc2 = [handler_to_behavior(Module, Function, Counter) | Acc],
+    middleware_to_behavior(Middleware, Acc2, Counter + 1).
+
+req_atom(Counter) ->
+    binary_to_atom(list_to_binary(["Req", integer_to_list(Counter)])).
+
+handler_to_behavior(Module, Function, 0) ->
+    Req1 = 'Req',
+    Req2 = req_atom(1),
+    codegen_match_handle_req(Req1, Req2, Module, Function);
+handler_to_behavior(Module, Function, Counter) ->
+    Req1 = req_atom(Counter),
+    Req2 = req_atom(Counter + 1),
+    codegen_match_handle_req(Req1, Req2, Module, Function).
+
+codegen_match_handle_req(Req1, Req2, Module, Function) ->
+    {match, 0, {var, 0, Req2}, codegen_handle_req(Module, Function, Req1)}.
+
+codegen_handle_req(Module, Function, Req) ->
+    {call, 0, {remote, 0, {atom, 0, Module}, {atom, 0, Function}}, [{var, 0, Req}]}.
 
 codegen_routes(Routes) ->
     [{function, 0, handle, 1, lists:map(fun codegen_route/1, Routes)}].
@@ -103,9 +131,6 @@ codegen_path([B | Rest], Acc) ->
                   0,
                   {bin, 0, [{bin_element, 0, {string, 0, binary_to_list(B)}, default, default}]},
                   Acc}).
-
-handler_to_behavior({Module, Function}) ->
-    [{call, 0, {remote, 0, {atom, 0, Module}, {atom, 0, Function}}, [{var, 0, 'Req'}]}].
 
 codegen_method_clause(Path, Method, Behavior) ->
     {clause,
