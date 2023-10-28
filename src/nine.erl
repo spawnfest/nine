@@ -18,12 +18,11 @@ codegen_module_form(Module) ->
 routes_map_to_forms(Module, Config) ->
     {ok, [codegen_module_form(Module)] ++ elli_exports() ++ routes_map_to_methods(Config)}.
 
-routes_map_to_methods(Config) ->
-    codegen_handle() ++ codegen_handle_event() ++ codegen_routes(Config).
-    %codegen_handle_simple() ++ codegen_handle_event().
-
 elli_exports() ->
     [{attribute, 0, export, [{handle, 2}, {handle_event, 3}]}].
+
+routes_map_to_methods(Config) ->
+    codegen_handle() ++ codegen_handle_event() ++ codegen_routes(Config).
 
 codegen_handle_event() ->
     [{function,
@@ -35,9 +34,6 @@ codegen_handle_event() ->
         [{var, 0, '_Event'}, {var, 0, '_Data'}, {var, 0, '_Args'}],
         [],
         [{atom, 0, ok}]}]}].
-
-codegen_handle_simple() ->
-    [{function, 0, handle, 2, [{clause, 0, [{var, 0, 'Req'}, {var, 0, '_Args'}], [], [{atom, 0, ok}]}]}].
 
 codegen_handle() ->
     [{function,
@@ -54,17 +50,14 @@ codegen_handle() ->
           [{map,
             0,
             [{map_field_assoc, 0, {atom, 0, req}, {var, 0, 'Req'}},
-             {map_field_assoc,
-              0,
-              {atom, 0, method},
-              {record_field, 0, {var, 0, 'Req'}, req, {atom, 0, method}}},
-             {map_field_assoc,
-              0,
-              {atom, 0, path},
-              [{call,
-                0,
-                {remote, 0, {atom, 0, elli_request}, {atom, 0, path}},
-                [{var, 0, 'Req'}]}]}]}]}]}]}].
+             {map_field_assoc, 0, {atom, 0, method}, codegen_get_method()},
+             {map_field_assoc, 0, {atom, 0, path}, codegen_get_path()}]}]}]}]}].
+
+codegen_get_method() ->
+    {call, 1, {remote, 1, {atom, 1, nine_util}, {atom, 1, get_method}}, [{var, 1, 'Req'}]}.
+
+codegen_get_path() ->
+    {call, 0, {remote, 0, {atom, 0, elli_request}, {atom, 0, path}}, [{var, 0, 'Req'}]}.
 
 codegen_routes(Config) ->
     [{function,
