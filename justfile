@@ -1,4 +1,4 @@
-format:
+format: compile
         ERL_AFLAGS="-enable-feature all" rebar3 format
 
 compile:

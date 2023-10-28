@@ -59,23 +59,41 @@ codegen_get_method() ->
 codegen_get_path() ->
     {call, 0, {remote, 0, {atom, 0, elli_request}, {atom, 0, path}}, [{var, 0, 'Req'}]}.
 
-config_to_routes([_ | _] = Config) ->
+config_to_routes(Config) ->
+    config_to_routes(<<"">>, Config).
+
+config_to_routes(ParentPath, [_ | _] = Config) ->
     {MidBefore, Config2, MidAfter} = split_middleware_config(Config),
     lists:flatten(
         lists:map(fun({Path, PathConfig}) ->
-                     PathConfig2 =
-                         case PathConfig of
-                             [_ | _] = Pc ->
-                                 MidBefore ++ Pc ++ MidAfter;
-                             #{} = Pc ->
-                                 MidBefore ++ [Pc] ++ MidAfter
-                         end,
-                     extract_path_method_handlers({Path, PathConfig2})
+                     NewPath = list_to_binary([ParentPath, Path]),
+                     case is_path_method_config(PathConfig) of
+                         true ->
+                             PathConfig2 =
+                                 case PathConfig of
+                                     [_ | _] = Pc ->
+                                         MidBefore ++ Pc ++ MidAfter;
+                                     #{} = Pc ->
+                                         MidBefore ++ [Pc] ++ MidAfter
+                                 end,
+                             extract_path_method_handlers({NewPath, PathConfig2});
+                         false ->
+                             ok
+                     end
                   end,
                   maps:to_list(Config2)));
-config_to_routes(Config) ->
+config_to_routes(ParentPath, Config) ->
     lists:flatten(
-        lists:map(fun extract_path_method_handlers/1, maps:to_list(Config))).
+        lists:map(fun({Path, PathConfig}) ->
+                     NewPath = list_to_binary([ParentPath, Path]),
+                     case is_path_method_config(PathConfig) of
+                         true ->
+                             extract_path_method_handlers({NewPath, PathConfig});
+                         false ->
+                             config_to_routes(NewPath, PathConfig)
+                     end
+                  end,
+                  maps:to_list(Config))).
 
 extract_path_method_handlers({Path0, PathConfig}) ->
     Path = codegen_path(parse_path(Path0)),
@@ -101,6 +119,36 @@ extract_method_handlers(Path, PathConfig = #{}) ->
                  {Path, translate_method(M), Behavior}
               end,
               maps:to_list(PathConfig)).
+
+is_path_method_config(Config = #{}) ->
+    lists:foldl(fun(K, Acc) ->
+                   case Acc of
+                       true ->
+                           true;
+                       false ->
+                           case K of
+                               <<"GET">> ->
+                                   true;
+                               <<"POST">> ->
+                                   true;
+                               <<"PUT">> ->
+                                   true;
+                               <<"PATCH">> ->
+                                   true;
+                               <<"DELETE">> ->
+                                   true;
+                               <<"_">> ->
+                                   true;
+                               _ ->
+                                   false
+                           end
+                   end
+                end,
+                false,
+                maps:keys(Config));
+is_path_method_config(Config = [_ | _]) ->
+    {_, Config2, _} = split_middleware_config(Config),
+    is_path_method_config(Config2).
 
 split_middleware_config(Config) ->
     split_middleware_config(Config, [], undefined, undefined).
@@ -187,7 +235,7 @@ codegen_method_clause(Path, Method, Behavior) ->
      [],
      Behavior}.
 
-codegen_method_clause_helper(<<"*">>, Method) ->
+codegen_method_clause_helper(<<"_">>, Method) ->
     [{map_field_exact, 0, {atom, 0, method}, codegen_method_value(Method)}];
 codegen_method_clause_helper(Path, Method) ->
     [{map_field_exact, 0, {atom, 0, method}, codegen_method_value(Method)},
@@ -212,7 +260,7 @@ translate_method(<<"PATCH">>) ->
     'PATCH';
 translate_method(<<"DELETE">>) ->
     'DELETE';
-translate_method(<<"*">>) ->
+translate_method(<<"_">>) ->
     '_Method'.
 
 -ifdef(TEST).
