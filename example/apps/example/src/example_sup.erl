@@ -37,7 +37,9 @@ init([]) ->
 
 %% internal functions
 routes() ->
-    #{<<"/todos">> => #{<<"GET">> => {example_handler, get}},
-      <<"/foo">> => #{<<"GET">> => [{example_handler, get2}, {example_mid, response}]},
-      <<"/bar">> => [#{<<"GET">> => {example_handler, get2}}, {example_mid, response}],
-      <<"/">> => #{<<"GET">> => {example_handler, get}}}.
+    [{example_mid, message},
+     #{<<"/todos">> => #{<<"GET">> => {example_handler, get}},
+       <<"/foo">> => #{<<"GET">> => [{example_handler, get2}, {example_mid, response}]},
+       <<"/bar">> => [#{<<"GET">> => {example_handler, get2}}, {example_mid, response}],
+       <<"/stuff">> => #{<<"GET">> => {example_handler, get3}},
+       <<"/">> => #{<<"GET">> => {example_handler, get}}}].

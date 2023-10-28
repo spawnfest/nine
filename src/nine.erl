@@ -59,6 +59,20 @@ codegen_get_method() ->
 codegen_get_path() ->
     {call, 0, {remote, 0, {atom, 0, elli_request}, {atom, 0, path}}, [{var, 0, 'Req'}]}.
 
+config_to_routes([_ | _] = Config) ->
+    {MidBefore, Config2, MidAfter} = split_middleware_config(Config),
+    lists:flatten(
+        lists:map(fun({Path, PathConfig}) ->
+                     PathConfig2 =
+                         case PathConfig of
+                             [_ | _] = Pc ->
+                                 MidBefore ++ Pc ++ MidAfter;
+                             #{} = Pc ->
+                                 MidBefore ++ [Pc] ++ MidAfter
+                         end,
+                     extract_path_method_handlers({Path, PathConfig2})
+                  end,
+                  maps:to_list(Config2)));
 config_to_routes(Config) ->
     lists:flatten(
         lists:map(fun extract_path_method_handlers/1, maps:to_list(Config))).
