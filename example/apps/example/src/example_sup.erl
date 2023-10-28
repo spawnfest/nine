@@ -39,4 +39,5 @@ init([]) ->
 routes() ->
     #{<<"/todos">> => #{<<"GET">> => {example_handler, get}},
       <<"/foo">> => #{<<"GET">> => [{example_handler, get2}, {example_mid, response}]},
+      <<"/bar">> => [#{<<"GET">> => {example_handler, get2}}, {example_mid, response}],
       <<"/">> => #{<<"GET">> => {example_handler, get}}}.

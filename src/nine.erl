@@ -67,12 +67,41 @@ extract_path_method_handlers({Path0, PathConfig}) ->
     Path = codegen_path(parse_path(Path0)),
     extract_method_handlers(Path, PathConfig).
 
-extract_method_handlers(Path, PathConfig) ->
+extract_method_handlers(Path, PathConfig = [_ | _]) ->
+    {MidBefore, Config, MidAfter} = split_middleware_config(PathConfig),
+    lists:map(fun({M, MethodConfig}) ->
+                 MethodConfig2 =
+                     case MethodConfig of
+                         [_ | _] = Mc ->
+                             MidBefore ++ Mc ++ MidAfter;
+                         {_Module, _Function} = Mc ->
+                             MidBefore ++ [Mc] ++ MidAfter
+                     end,
+                 Behavior = method_config_to_behavior(MethodConfig2),
+                 {Path, translate_method(M), Behavior}
+              end,
+              maps:to_list(Config));
+extract_method_handlers(Path, PathConfig = #{}) ->
     lists:map(fun({M, MethodConfig}) ->
                  Behavior = method_config_to_behavior(MethodConfig),
                  {Path, translate_method(M), Behavior}
               end,
               maps:to_list(PathConfig)).
+
+split_middleware_config(Config) ->
+    split_middleware_config(Config, [], undefined, undefined).
+
+split_middleware_config([], Before, Config2, After) ->
+    {lists:reverse(Before), Config2, lists:reverse(After)};
+split_middleware_config([Item | Rest], Before, undefined, undefined) ->
+    case Item of
+        #{} = Item2 ->
+            split_middleware_config(Rest, Before, Item2, []);
+        {_Module, _Function} = Item2 ->
+            split_middleware_config(Rest, [Item2 | Before], undefined, undefined)
+    end;
+split_middleware_config([Item | Rest], Before, Config, After) ->
+    split_middleware_config(Rest, Before, Config, [Item | After]).
 
 method_config_to_behavior({Module, Function}) ->
     [{call, 0, {remote, 0, {atom, 0, Module}, {atom, 0, Function}}, [{var, 0, 'Req'}]}];
