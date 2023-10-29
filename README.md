@@ -24,6 +24,8 @@ Navigate to localhost:3000. Please see `example/README.md` for more details.
 
 `nine:compile` takes a router config and compiles it into an Erlang module at runtime using [forms](https://www.erlang.org/doc/apps/erts/absform).
 
+The generated module will have two functions: `handle/2` and `handle_event/3`, in accordance with the `elli_callback` behaviour.
+
 The handle function generated has a few important details. It will wrap the elli req and create Context map that will always have these keys:
 
     #{path => elli_request:path(Req),
