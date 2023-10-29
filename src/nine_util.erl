@@ -12,4 +12,3 @@ not_found(Context) ->
 
 redirect(Context, RedirectPath) ->
     Context#{response => {302, [{<<"Location">>, RedirectPath}], <<>>}}.
-

@@ -25,7 +25,6 @@ start_link() ->
 %%                  type => worker(),       % optional
 %%                  modules => modules()}   % optional
 init([]) ->
-    example_routes:build(),
     SupFlags =
         #{strategy => one_for_all,
           intensity => 0,

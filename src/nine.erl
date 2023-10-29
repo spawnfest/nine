@@ -326,22 +326,22 @@ translate_path_param(S) ->
             binary_to_atom(string:titlecase(Suffix))
     end.
 
-split_wildcards(<<"*">>) ->
-    <<"*">>;
-split_wildcards(S) ->
-    Result = string:split(S, "*", all),
-    [<<"*">> | Rest] =
-        lists:foldl(fun(E, Acc) ->
-                       case E of
-                           <<>> ->
-                               [<<"*">> | Acc];
-                           B ->
-                               [<<"*">>, B | Acc]
-                       end
-                    end,
-                    [],
-                    Result),
-    lists:reverse(Rest).
+%% split_wildcards(<<"*">>) ->
+%%     <<"*">>;
+%% split_wildcards(S) ->
+%%     Result = string:split(S, "*", all),
+%%     [<<"*">> | Rest] =
+%%         lists:foldl(fun(E, Acc) ->
+%%                        case E of
+%%                            <<>> ->
+%%                                [<<"*">> | Acc];
+%%                            B ->
+%%                                [<<"*">>, B | Acc]
+%%                        end
+%%                     end,
+%%                     [],
+%%                     Result),
+%%     lists:reverse(Rest).
 
 codegen_path([]) ->
     {var, 0, '_'};

@@ -28,7 +28,7 @@ get_count() ->
     Count.
 
 update_count(Count) ->
-    ets:insert(db, {count, Count + 1}). 
+    ets:insert(db, {count, Count + 1}).
 
 update(Id, Body) ->
     ets:insert(db, {Id, Body}).
@@ -37,14 +37,10 @@ delete(Id) ->
     ets:delete(db, Id).
 
 filter_count(Todos) ->
-    lists:filter(fun ([{Id, _}]) ->
-                         Id =/= count
-                 end, Todos).
-
+    lists:filter(fun([{Id, _}]) -> Id =/= count end, Todos).
 
 format_todos(Todos) ->
     lists:map(fun format_todo/1, Todos).
 
 format_todo([{Id, Body}]) ->
-    #{id => Id,
-      body => Body}.
+    #{id => Id, body => Body}.

@@ -2,10 +2,12 @@
 
 -export([urlencoded_params/1, json_request/1, json_response/1]).
 
-urlencoded_params(Context=#{req := Req}) ->
+urlencoded_params(Context = #{req := Req}) ->
     case elli_request:get_header(<<"Content-Type">>, Req) of
         <<"application/x-www-form-urlencoded">> ->
-            PostParams = maps:from_list(elli_request:post_args_decoded(Req)),
+            PostParams =
+                maps:from_list(
+                    elli_request:post_args_decoded(Req)),
             case Context of
                 #{params := Params} ->
                     Context#{params => maps:merge(Params, PostParams)};
@@ -16,10 +18,12 @@ urlencoded_params(Context=#{req := Req}) ->
             Context
     end.
 
-json_request(Context=#{req := Req}) ->
+json_request(Context = #{req := Req}) ->
     case elli_request:get_header(<<"Content-Type">>, Req) of
         <<"application/json">> ->
-            case thoas:decode(elli_request:body(Req)) of
+            case thoas:decode(
+                     elli_request:body(Req))
+            of
                 {ok, Json} ->
                     Context#{json => Json};
                 _ ->
