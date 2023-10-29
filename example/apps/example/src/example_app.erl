@@ -10,6 +10,7 @@
 -export([start/2, stop/1]).
 
 start(_StartType, _StartArgs) ->
+    todo_db:init(),
     example_sup:start_link().
 
 stop(_State) ->

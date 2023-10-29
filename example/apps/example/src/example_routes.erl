@@ -3,7 +3,15 @@
 -export([build/0]).
 
 build() ->
-    nine:compile(example_router, config()).
+    nine:compile(example_router, todo_config()).
+
+todo_config() ->
+    #{<<"/">> => #{<<"GET">> => {todo_handler, get_todos}},
+      <<"/todo">> => #{<<"POST">> => {todo_handler, post_todo}},
+      <<"/todo/:id">> => #{<<"GET">> => {todo_handler, get_todo},
+                           <<"PUT">> => {todo_handler, update_todo},
+                           <<"DELETE">> => {todo_handler, delete_todo}},
+      <<"*">> => #{<<"_">> => {nine_util, not_found}}}.
 
 config6() ->
     #{<<"/foo">> => #{<<"GET">> => {example_handler, get}}}.

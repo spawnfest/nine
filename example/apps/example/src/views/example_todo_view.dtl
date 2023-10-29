@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Example Todo App</title>
+  </head>
+  <body>
+    <a href="/"> Home </a>
+    <h1>Todo</h1>
+    <div>
+      <h2>Id</h2>
+      <p>{{id}}</p>
+    </div>
+    <div>
+      <h2>Body</h2>
+      <p>{{body}}</p>
+    </div>
+  </body>
+</html>

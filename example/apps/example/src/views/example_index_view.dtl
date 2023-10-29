@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Example Todo App</title>
+  </head>
+  <body>
+    <h1>Todos</h1>
+    <form action="/todo" method="post">
+      <label for="body">Body:</label> 
+      <input type="text" id="body" name="body" required>
+      <input type="submit" value="New Todo">
+    </form>
+    <ul>
+       {% for todo in todos %}
+       <li>
+         <a href="/todo/{{todo.id}}">{{todo.body}}</a>
+       </li>
+       {% endfor %}
+    </ul>
+  </body>
+</html>
