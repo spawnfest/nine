@@ -263,6 +263,7 @@ If a handler or middleware returns a Context map with the `response` key it will
 - [ataraxy](https://github.com/weavejester/ataraxy) - data driven routing library for Clojure
 - [Plug.Router](https://hexdocs.pm/plug/readme.html#plug-router) - Ecosystem defining Elixir HTTP middleware
 - [golang http middleware](https://dev.to/theghostmac/understanding-and-crafting-http-middlewares-in-go-3183) - Standard Library Golang Middleware Pattern
+- [Cowboy Router](https://ninenines.eu/docs/en/cowboy/2.10/guide/routing/) - cowboy router is compiled into a lookup table
 
 ## Fun Facts
 
