@@ -7,10 +7,12 @@ build() ->
 
 todo_config() ->
     #{<<"/">> => #{<<"GET">> => {todo_handler, get_todos}},
-      <<"/todo">> => #{<<"POST">> => {todo_handler, post_todo}},
-      <<"/todo/:id">> => #{<<"GET">> => {todo_handler, get_todo},
-                           <<"PUT">> => {todo_handler, update_todo},
-                           <<"DELETE">> => {todo_handler, delete_todo}},
+      <<"/todo">> => [{nine_mid, urlencoded_params},
+                      #{<<"POST">> => {todo_handler, post_todo}}],
+      <<"/todo/:id">> => [{nine_mid, urlencoded_params}, 
+                          #{<<"GET">> => {todo_handler, get_todo},
+                            <<"PUT">> => {todo_handler, update_todo},
+                            <<"DELETE">> => {todo_handler, delete_todo}}],
       <<"*">> => #{<<"_">> => {nine_util, not_found}}}.
 
 config6() ->

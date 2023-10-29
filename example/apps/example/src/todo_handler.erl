@@ -16,7 +16,7 @@ get_todo(Context=#{params := #{id := Id}}) ->
             nine_util:not_found(Context)
     end.
 
-post_todo(Context=#{params := #{body := Body}}) ->
+post_todo(Context=#{params := #{<<"body">> := Body}}) ->
     todo_db:insert(Body),
     nine_util:redirect(Context, <<"/">>).
 
