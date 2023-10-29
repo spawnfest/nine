@@ -39,11 +39,38 @@ sort_routes(Routes) ->
                           BSplat = contains_splat(B),
                           case {AContainsParams, BContainsParams, ASplat, BSplat} of
                               {true, true, true, true} ->
-                                  A < B; %% This might lead to issues
+                                  AIsSplat = A == <<"*">>,
+                                  BIsSplat = B == <<"*">>,
+                                  case {AIsSplat, BIsSplat} of
+                                      {true, false} ->
+                                          false;
+                                      {false, true} ->
+                                          true;
+                                      _ ->
+                                          A < B
+                                  end;
                               {true, false, true, true} ->
-                                  false;
+                                  AIsSplat = A == <<"*">>,
+                                  BIsSplat = B == <<"*">>,
+                                  case {AIsSplat, BIsSplat} of
+                                      {true, false} ->
+                                          false;
+                                      {false, true} ->
+                                          true;
+                                      _ ->
+                                          false
+                                  end;
                               {false, true, true, true} ->
-                                  true;
+                                  AIsSplat = A == <<"*">>,
+                                  BIsSplat = B == <<"*">>,
+                                  case {AIsSplat, BIsSplat} of
+                                      {true, false} ->
+                                          false;
+                                      {false, true} ->
+                                          true;
+                                      _ ->
+                                          true
+                                  end;
                               {_, _, true, false} ->
                                   false;
                               {_, _, false, true} ->
