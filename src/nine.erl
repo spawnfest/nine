@@ -264,7 +264,7 @@ codegen_path_params(PathParams) ->
      {var, 0, 'Req1'},
      {map,
       0,
-      {var, 0, 'Req'},
+      {var, 0, 'Req0'},
       [{map_field_assoc,
         0,
         {atom, 0, params},
