@@ -3,7 +3,10 @@
 -export([build/0]).
 
 build() ->
-    nine:compile(example_router, config()).
+    nine:compile(example_router, config3()).
+
+config3() ->
+    #{<<"/">> => #{<<"GET">> => {example_handler, index}}}.
 
 config2() ->
     #{<<"/nest">> =>
@@ -25,4 +28,6 @@ config() ->
            [{example_mid, message}, #{<<"/nesty">> => #{<<"GET">> => {example_handler, get3}}}],
        <<"/">> =>
            #{<<"GET">> =>
-                 {example_handler, get}}}].       %<<"*">> => #{<<"_">> => {example_handler, get}}
+                 {example_handler, get}}}].
+
+% <<"*">> => #{<<"_">> => {example_handler, get}}

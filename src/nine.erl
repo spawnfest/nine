@@ -191,14 +191,24 @@ codegen_route({Path0, Method, Behavior}) ->
     Path = codegen_path(parse_path(Path0)),
     codegen_method_clause(Path, Method, Behavior).
 
-parse_path(<<"*">>) ->
-    <<"*">>;
 parse_path(Path0) ->
     [_ | Rest] = string:split(Path0, "/", all),
-    Rest.
+    lists:flatten(lists:map(fun split_wildcards/1, Rest)).
 
-codegen_path(<<"*">>) ->
+split_wildcards(<<"*">>) ->
     <<"*">>;
+split_wildcards(S) ->
+    Result = string:split(S, "*", all),
+    [<<"*">> | Rest] = lists:foldl(fun (E, Acc) ->
+                                      case E of
+                                        <<>> ->
+                                            [<<"*">> | Acc];
+                                        B ->
+                                            [<<"*">>, B | Acc]
+                                      end
+                end, [], Result),
+    lists:reverse(Rest).
+
 codegen_path([<<>>]) ->
     {nil, 0};
 codegen_path([[]]) ->
@@ -209,11 +219,10 @@ codegen_path(Path) ->
 codegen_path([], Acc) ->
     Acc;
 codegen_path([B | Rest], Acc) ->
-    codegen_path(Rest,
-                 {cons,
-                  0,
-                  {bin, 0, [{bin_element, 0, {string, 0, binary_to_list(B)}, default, default}]},
-                  Acc}).
+    codegen_path(Rest, {cons, 0, codegen_binary(B), Acc}).
+
+codegen_binary(B) ->
+    {bin, 0, [{bin_element, 0, {string, 0, binary_to_list(B)}, default, default}]}.
 
 %% TODO: change name method to something else
 codegen_method_clause(Path, Method, Behavior) ->
@@ -223,8 +232,6 @@ codegen_method_clause(Path, Method, Behavior) ->
      [],
      Behavior}.
 
-codegen_method_clause_helper(<<"*">>, Method) ->
-    [{map_field_exact, 0, {atom, 0, method}, codegen_method_value(Method)}];
 codegen_method_clause_helper(Path, Method) ->
     [{map_field_exact, 0, {atom, 0, method}, codegen_method_value(Method)},
      {map_field_exact, 0, {atom, 0, path}, Path}].
@@ -254,5 +261,19 @@ translate_method(<<"_">>) ->
 -ifdef(TEST).
 
 -include_lib("eunit/include/eunit.hrl").
+
+split_wildcards_test() ->
+    ?assertEqual([<<"foo">>, <<"*">>, <<"bar">>],
+                 split_wildcards(<<"foo*bar">>)),
+
+    ?assertEqual([<<"*">>, <<"foo">>], split_wildcards(<<"*foo">>)),
+
+    ?assertEqual([<<"foo">>, <<"*">>], split_wildcards(<<"foo*">>)).
+
+parse_path_test() ->
+    ?assertEqual([<<"foo">>, <<"bar">>], parse_path(<<"/foo/bar">>)),
+
+    ?assertEqual([<<"*">>, <<"foo">>], parse_path(<<"/*/foo">>)),
+    ?assertEqual([<<"*">>], parse_path(<<"*">>)).
 
 -endif.
