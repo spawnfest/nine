@@ -1,6 +1,6 @@
 -module(nine_mid).
 
--export([urlencoded_params/1]).
+-export([urlencoded_params/1, json_request/1, json_response/1]).
 
 urlencoded_params(Context=#{req := Req}) ->
     case elli_request:get_header(<<"Content-Type">>, Req) of
@@ -13,5 +13,25 @@ urlencoded_params(Context=#{req := Req}) ->
                     Context#{params => PostParams}
             end;
         _ ->
-            Context#{here => hello}
+            Context
     end.
+
+json_request(Context=#{req := Req}) ->
+    case elli_request:get_header(<<"Content-Type">>, Req) of
+        <<"application/json">> ->
+            case thoas:decode(elli_request:body(Req)) of
+                {ok, Json} ->
+                    Context#{json => Json};
+                _ ->
+                    Context#{response => {500, [], <<"Encoding Error">>}}
+            end;
+        _ ->
+            Context#{response => {400, [], <<"Expected JSON">>}}
+    end.
+
+json_response(#{draft := Draft, status := Status}) ->
+    {Status, [{<<"Content-Type">>, <<"application/json">>}], thoas:encode(Draft)};
+json_response(#{draft := Draft}) ->
+    {200, [{<<"Content-Type">>, <<"application/json">>}], thoas:encode(Draft)};
+json_response(Context) ->
+    Context.

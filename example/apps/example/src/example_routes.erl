@@ -9,10 +9,14 @@ todo_config() ->
     #{<<"/">> => #{<<"GET">> => {todo_handler, get_todos}},
       <<"/todo">> => [{nine_mid, urlencoded_params},
                       #{<<"POST">> => {todo_handler, post_todo}}],
-      <<"/todo/:id">> => [{nine_mid, urlencoded_params}, 
-                          #{<<"GET">> => {todo_handler, get_todo},
-                            <<"PUT">> => {todo_handler, update_todo},
-                            <<"DELETE">> => {todo_handler, delete_todo}}],
+      <<"/todo/:id">> => #{<<"GET">> => {todo_handler, get_todo}},
+      <<"/api">> => [#{<<"/todo/:id">> => #{<<"GET">> => {todo_handler, get_todo_json}},
+                       <<"/todo">> => [{nine_mid, json_request},
+                                     #{<<"POST">> => {todo_handler, post_todo_json},
+                                       <<"PUT">> => {todo_handler, update_todo_json},
+                                       <<"DELETE">> => {todo_handler, delete_todo_json}}],
+                       <<"/todos">> => #{<<"GET">> => {todo_handler, get_todos_json}}},
+                     {nine_mid, json_response}],
       <<"*">> => #{<<"_">> => {nine_util, not_found}}}.
 
 config6() ->
