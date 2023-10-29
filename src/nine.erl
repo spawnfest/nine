@@ -22,7 +22,34 @@ elli_exports() ->
     [{attribute, 0, export, [{handle, 2}, {handle_event, 3}]}].
 
 routes_map_to_methods(Config) ->
-    codegen_handle() ++ codegen_handle_event() ++ codegen_routes(config_to_routes(Config)).
+    codegen_handle()
+    ++ codegen_handle_event()
+    ++ codegen_routes(sort_routes(config_to_routes(Config))).
+
+sort_routes(Routes) ->
+    lists:sort(fun({A, _, _}, {B, _, _}) ->
+                  AContainsParams = contains_params(A),
+                  BContainsParams = contains_params(B),
+                  case {AContainsParams, BContainsParams} of
+                      {true, true} ->
+                          A < B;
+                      {true, false} ->
+                          false;
+                      {false, true} ->
+                          true;
+                      {false, false} ->
+                          A < B
+                  end
+               end,
+               Routes).
+
+contains_params(S) ->
+    case string:find(S, ":") of
+        nomatch ->
+            false;
+        _ ->
+            true
+    end.
 
 codegen_handle_event() ->
     [{function,

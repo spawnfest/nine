@@ -7,6 +7,7 @@ build() ->
 
 config4() ->
     #{<<"/todo/:id">> => #{<<"GET">> => {example_handler, get_param}},
+      <<"/todo/foo">> => #{<<"GET">> => {example_handler, get}},
       <<"/foo">> => #{<<"GET">> => {example_handler, get}}}.
 
 config3() ->
