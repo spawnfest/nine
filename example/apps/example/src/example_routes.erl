@@ -3,7 +3,12 @@
 -export([build/0]).
 
 build() ->
-    nine:compile(example_router, config4()).
+    nine:compile(example_router, config5()).
+
+config5() ->
+    #{<<"/todo/:id">> => #{<<"GET">> => {example_handler, get_param}},
+      <<"/assets">> => #{<<"*">> => #{<<"GET">> => {example_handler, index}}},
+      <<"*">> => #{<<"GET">> => {example_handler, get}}}.
 
 config4() ->
     #{<<"/todo/:id">> => #{<<"GET">> => {example_handler, get_param}},

@@ -26,25 +26,51 @@ routes_map_to_methods(Config) ->
     ++ codegen_handle_event()
     ++ codegen_routes(sort_routes(config_to_routes(Config))).
 
+%% true means A < B
 sort_routes(Routes) ->
-    lists:sort(fun({A, _, _}, {B, _, _}) ->
-                  AContainsParams = contains_params(A),
-                  BContainsParams = contains_params(B),
-                  case {AContainsParams, BContainsParams} of
-                      {true, true} ->
-                          A < B;
-                      {true, false} ->
-                          false;
-                      {false, true} ->
-                          true;
-                      {false, false} ->
-                          A < B
+    lists:sort(fun({A, AMethod, _}, {B, BMethod, _}) ->
+                  case A == B of
+                      true ->
+                          AMethod < BMethod;
+                      false ->
+                          AContainsParams = contains_params(A),
+                          BContainsParams = contains_params(B),
+                          ASplat = contains_splat(A),
+                          BSplat = contains_splat(B),
+                          case {AContainsParams, BContainsParams, ASplat, BSplat} of
+                              {true, true, true, true} ->
+                                  A < B; %% This might lead to issues
+                              {true, false, true, true} ->
+                                  false;
+                              {false, true, true, true} ->
+                                  true;
+                              {_, _, true, false} ->
+                                  false;
+                              {_, _, false, true} ->
+                                  true;
+                              {true, true, _, _} ->
+                                  A < B;
+                              {true, false, _, _} ->
+                                  false;
+                              {false, true, _, _} ->
+                                  true;
+                              {false, false, _, _} ->
+                                  A < B
+                          end
                   end
                end,
                Routes).
 
 contains_params(S) ->
     case string:find(S, ":") of
+        nomatch ->
+            false;
+        _ ->
+            true
+    end.
+
+contains_splat(S) ->
+    case string:find(S, "*") of
         nomatch ->
             false;
         _ ->
@@ -97,7 +123,7 @@ config_to_routes2(ParentPath, #{} = Config) ->
 
 config_to_routes_helper(ParentPath, Config, MidBefore, MidAfter) ->
     lists:map(fun({K, V}) ->
-                 NewPath = list_to_binary([ParentPath, K]),
+                 NewPath = list_to_binary([ParentPath, translate_splat(K)]),
                  case is_path_method_config(V) of
                      true ->
                          case V of
@@ -121,6 +147,11 @@ config_to_routes_helper(ParentPath, Config, MidBefore, MidAfter) ->
               end,
               maps:to_list(Config)).
 
+translate_splat(<<"*">>) ->
+    <<"/*">>;
+translate_splat(S) ->
+    S.
+
 extract_method_handlers(Path, PathConfig = [_ | _]) ->
     {MidBefore, Config, MidAfter} = split_middleware_config(PathConfig),
     lists:map(fun({M, MethodConfig}) ->
@@ -131,7 +162,7 @@ extract_method_handlers(Path, PathConfig = [_ | _]) ->
                          {_Module, _Function} = Mc ->
                              MidBefore ++ [Mc] ++ MidAfter
                      end,
-                 {Path, translate_method(M), MethodConfig2}
+                 {Path, M, MethodConfig2}
               end,
               maps:to_list(Config)).
 
@@ -270,6 +301,8 @@ split_wildcards(S) ->
                     Result),
     lists:reverse(Rest).
 
+codegen_path([]) ->
+    {var, 0, '_'};
 codegen_path([<<>>]) ->
     {nil, 0};
 codegen_path([[]]) ->
@@ -284,6 +317,8 @@ codegen_path([E | Rest], Acc) ->
 
 codegen_path_element(E) ->
     case E of
+        <<"*">> ->
+            {var, 0, '_'};
         E when is_atom(E) ->
             {var, 0, E};
         E when is_binary(E) ->
@@ -302,7 +337,7 @@ codegen_method_clause(Path, Method, Behavior) ->
      Behavior}.
 
 codegen_method_clause_helper(Path, Method) ->
-    [{map_field_exact, 0, {atom, 0, method}, codegen_method_value(Method)},
+    [{map_field_exact, 0, {atom, 0, method}, codegen_method_value(translate_method(Method))},
      {map_field_exact, 0, {atom, 0, path}, Path}].
 
 codegen_method_value(Method) ->
@@ -341,11 +376,10 @@ split_wildcards_test() ->
 parse_path_test() ->
     ?assertEqual([<<"foo">>, <<"bar">>], parse_path(<<"/foo/bar">>)),
 
-    ?assertEqual([<<"foo">>, 'Bar'], parse_path(<<"/foo/:bar">>)).
+    ?assertEqual([<<"foo">>, 'Bar'], parse_path(<<"/foo/:bar">>)),
+    ?assertEqual([<<>>], parse_path(<<"/">>)),
 
-    %?assertEqual([<<"*">>, <<"foo">>], parse_path(<<"/*/foo">>)),
-    %?assertEqual([<<"*">>], parse_path(<<"*">>)).
-    %
+    ?assertEqual([], parse_path(<<"*">>)).
 
 translate_path_param_test() ->
     ?assertEqual(<<"foo">>, translate_path_param(<<"foo">>)),
