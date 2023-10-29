@@ -1,6 +1,6 @@
 -module(example_mid).
 
--export([response/1, message/1]).
+-export([response/1, message/1, halt/1]).
 
 response(#{resp :=
                #{status := Status,
@@ -10,3 +10,6 @@ response(#{resp :=
 
 message(Context) ->
     Context#{message => <<"This is a message!">>}.
+
+halt(Context) ->
+    Context#{response => {200, [], <<"Intercepted!">>}}.

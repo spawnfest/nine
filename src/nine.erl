@@ -224,10 +224,12 @@ filter_path_params(Path) ->
     lists:filter(fun is_atom/1, Path).
 
 middleware_to_behavior([_ | _] = Middleware, []) ->
-    middleware_to_behavior(Middleware, [], 0);
+    M = codegen_case_chain_init(m2b(Middleware, [], 0)),
+    [M];
 middleware_to_behavior([_ | _] = Middleware, PathParams) ->
     Pp = codegen_path_params(PathParams),
-    middleware_to_behavior(Middleware, [Pp], 1).
+    M = codegen_case_chain_init(m2b(Middleware, [], 1)),
+    [Pp, M].
 
 codegen_path_params(PathParams) ->
     {match,
@@ -248,26 +250,39 @@ codegen_path_param_elements(PathParams) ->
               end,
               PathParams).
 
-middleware_to_behavior([], Acc, Counter) ->
-    lists:reverse([{var, 0, req_atom(Counter)} | Acc]);
-middleware_to_behavior([{Module, Function} | Middleware], Acc, Counter) ->
-    Acc2 = [handler_to_behavior(Module, Function, Counter) | Acc],
-    middleware_to_behavior(Middleware, Acc2, Counter + 1).
+m2b([], Acc, _Counter) ->
+    Acc;
+m2b([{Module, Function} | Middleware], Acc, Counter) ->
+    m2b(Middleware, [{Module, Function, Counter} | Acc], Counter + 1).
+
+codegen_case_chain_init([{Module, Function, Counter} | Rest]) ->
+    codegen_case_chain(Rest,
+                       codegen_case_wrapper(Module,
+                                            Function,
+                                            Counter,
+                                            {var, 0, req_atom(Counter + 1)})).
+
+codegen_case_chain([], Acc) ->
+    Acc;
+codegen_case_chain([{Module, Function, Counter} | Mid], Acc) ->
+    codegen_case_chain(Mid, codegen_case_wrapper(Module, Function, Counter, Acc)).
+
+codegen_case_wrapper(Module, Function, Counter, Behavior) ->
+    {'case',
+     0,
+     codegen_handle_req(Module, Function, req_atom(Counter)),
+     [{clause,
+       0,
+       [{map, 0, [{map_field_exact, 0, {atom, 0, response}, {var, 0, resp_atom(Counter)}}]}],
+       [],
+       [{var, 0, resp_atom(Counter)}]},
+      {clause, 0, [{var, 0, req_atom(Counter + 1)}], [], [Behavior]}]}.
 
 req_atom(Counter) ->
     binary_to_atom(list_to_binary(["Req", integer_to_list(Counter)])).
 
-handler_to_behavior(Module, Function, 0) ->
-    Req1 = 'Req',
-    Req2 = req_atom(1),
-    codegen_match_handle_req(Req1, Req2, Module, Function);
-handler_to_behavior(Module, Function, Counter) ->
-    Req1 = req_atom(Counter),
-    Req2 = req_atom(Counter + 1),
-    codegen_match_handle_req(Req1, Req2, Module, Function).
-
-codegen_match_handle_req(Req1, Req2, Module, Function) ->
-    {match, 0, {var, 0, Req2}, codegen_handle_req(Module, Function, Req1)}.
+resp_atom(Counter) ->
+    binary_to_atom(list_to_binary(["Resp", integer_to_list(Counter)])).
 
 codegen_handle_req(Module, Function, Req) ->
     {call, 0, {remote, 0, {atom, 0, Module}, {atom, 0, Function}}, [{var, 0, Req}]}.
@@ -332,7 +347,7 @@ codegen_binary(B) ->
 codegen_method_clause(Path, Method, Behavior) ->
     {clause,
      0,
-     [{match, 0, {var, 0, 'Req'}, {map, 0, codegen_method_clause_helper(Path, Method)}}],
+     [{match, 0, {var, 0, 'Req0'}, {map, 0, codegen_method_clause_helper(Path, Method)}}],
      [],
      Behavior}.
 
