@@ -30,7 +30,7 @@ init([]) ->
         #{strategy => one_for_all,
           intensity => 0,
           period => 1},
-    ElliOpts = [{callback, example_router}, {port, 3000}],
+    ElliOpts = [{callback, example_callback}, {port, 3000}],
     ChildSpecs =
         [{example_http, {elli, start_link, [ElliOpts]}, permanent, 5000, worker, [elli]}],
     {ok, {SupFlags, ChildSpecs}}.

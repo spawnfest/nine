@@ -23,5 +23,5 @@ Navigate to localhost:3000.
 
 ## Todos
 
-- Config validator
 - Basic default middleware
+- Config validator
