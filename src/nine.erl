@@ -104,8 +104,7 @@ extract_method_handlers(Path, PathConfig = [_ | _]) ->
                          {_Module, _Function} = Mc ->
                              MidBefore ++ [Mc] ++ MidAfter
                      end,
-                 Behavior = method_config_to_behavior(MethodConfig2),
-                 {Path, translate_method(M), Behavior}
+                 {Path, translate_method(M), MethodConfig2}
               end,
               maps:to_list(Config)).
 
@@ -154,11 +153,42 @@ split_middleware_config([Item | Rest], Before, undefined, undefined) ->
 split_middleware_config([Item | Rest], Before, Config, After) ->
     split_middleware_config(Rest, Before, Config, [Item | After]).
 
-method_config_to_behavior([_ | _] = Middleware) ->
-    middleware_to_behavior(Middleware).
+codegen_routes(Routes) ->
+    [{function, 0, handle, 1, lists:map(fun codegen_route/1, Routes)}].
 
-middleware_to_behavior(Middleware) ->
-    middleware_to_behavior(Middleware, [], 0).
+codegen_route({Path0, Method, Middleware}) ->
+    PathParsed = parse_path(Path0),
+    Behavior = middleware_to_behavior(Middleware, filter_path_params(PathParsed)),
+    Path = codegen_path(PathParsed),
+    codegen_method_clause(Path, Method, Behavior).
+
+filter_path_params(Path) ->
+    lists:filter(fun is_atom/1, Path).
+
+middleware_to_behavior([_ | _] = Middleware, []) ->
+    middleware_to_behavior(Middleware, [], 0);
+middleware_to_behavior([_ | _] = Middleware, PathParams) ->
+    Pp = codegen_path_params(PathParams),
+    middleware_to_behavior(Middleware, [Pp], 1).
+
+codegen_path_params(PathParams) ->
+    {match,
+     0,
+     {var, 0, 'Req1'},
+     {map,
+      0,
+      {var, 0, 'Req'},
+      [{map_field_assoc,
+        0,
+        {atom, 0, params},
+        {map, 0, codegen_path_param_elements(PathParams)}}]}}.
+
+codegen_path_param_elements(PathParams) ->
+    lists:map(fun(P) ->
+                 Lvar = binary_to_atom(string:lowercase(atom_to_binary(P))),
+                 {map_field_assoc, 0, {atom, 0, Lvar}, {var, 0, P}}
+              end,
+              PathParams).
 
 middleware_to_behavior([], Acc, Counter) ->
     lists:reverse([{var, 0, req_atom(Counter)} | Acc]);
@@ -184,29 +214,33 @@ codegen_match_handle_req(Req1, Req2, Module, Function) ->
 codegen_handle_req(Module, Function, Req) ->
     {call, 0, {remote, 0, {atom, 0, Module}, {atom, 0, Function}}, [{var, 0, Req}]}.
 
-codegen_routes(Routes) ->
-    [{function, 0, handle, 1, lists:map(fun codegen_route/1, Routes)}].
-
-codegen_route({Path0, Method, Behavior}) ->
-    Path = codegen_path(parse_path(Path0)),
-    codegen_method_clause(Path, Method, Behavior).
-
 parse_path(Path0) ->
     [_ | Rest] = string:split(Path0, "/", all),
-    lists:flatten(lists:map(fun split_wildcards/1, Rest)).
+    lists:map(fun translate_path_param/1, Rest).
+
+translate_path_param(S) ->
+    case string:prefix(S, ":") of
+        nomatch ->
+            S;
+        Suffix ->
+            binary_to_atom(string:titlecase(Suffix))
+    end.
 
 split_wildcards(<<"*">>) ->
     <<"*">>;
 split_wildcards(S) ->
     Result = string:split(S, "*", all),
-    [<<"*">> | Rest] = lists:foldl(fun (E, Acc) ->
-                                      case E of
-                                        <<>> ->
-                                            [<<"*">> | Acc];
-                                        B ->
-                                            [<<"*">>, B | Acc]
-                                      end
-                end, [], Result),
+    [<<"*">> | Rest] =
+        lists:foldl(fun(E, Acc) ->
+                       case E of
+                           <<>> ->
+                               [<<"*">> | Acc];
+                           B ->
+                               [<<"*">>, B | Acc]
+                       end
+                    end,
+                    [],
+                    Result),
     lists:reverse(Rest).
 
 codegen_path([<<>>]) ->
@@ -218,8 +252,16 @@ codegen_path(Path) ->
 
 codegen_path([], Acc) ->
     Acc;
-codegen_path([B | Rest], Acc) ->
-    codegen_path(Rest, {cons, 0, codegen_binary(B), Acc}).
+codegen_path([E | Rest], Acc) ->
+    codegen_path(Rest, {cons, 0, codegen_path_element(E), Acc}).
+
+codegen_path_element(E) ->
+    case E of
+        E when is_atom(E) ->
+            {var, 0, E};
+        E when is_binary(E) ->
+            codegen_binary(E)
+    end.
 
 codegen_binary(B) ->
     {bin, 0, [{bin_element, 0, {string, 0, binary_to_list(B)}, default, default}]}.
@@ -263,8 +305,7 @@ translate_method(<<"_">>) ->
 -include_lib("eunit/include/eunit.hrl").
 
 split_wildcards_test() ->
-    ?assertEqual([<<"foo">>, <<"*">>, <<"bar">>],
-                 split_wildcards(<<"foo*bar">>)),
+    ?assertEqual([<<"foo">>, <<"*">>, <<"bar">>], split_wildcards(<<"foo*bar">>)),
 
     ?assertEqual([<<"*">>, <<"foo">>], split_wildcards(<<"*foo">>)),
 
@@ -273,7 +314,14 @@ split_wildcards_test() ->
 parse_path_test() ->
     ?assertEqual([<<"foo">>, <<"bar">>], parse_path(<<"/foo/bar">>)),
 
-    ?assertEqual([<<"*">>, <<"foo">>], parse_path(<<"/*/foo">>)),
-    ?assertEqual([<<"*">>], parse_path(<<"*">>)).
+    ?assertEqual([<<"foo">>, 'Bar'], parse_path(<<"/foo/:bar">>)).
+
+    %?assertEqual([<<"*">>, <<"foo">>], parse_path(<<"/*/foo">>)),
+    %?assertEqual([<<"*">>], parse_path(<<"*">>)).
+    %
+
+translate_path_param_test() ->
+    ?assertEqual(<<"foo">>, translate_path_param(<<"foo">>)),
+    ?assertEqual('Foo', translate_path_param(<<":foo">>)).
 
 -endif.

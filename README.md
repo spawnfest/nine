@@ -19,7 +19,6 @@ Navigate to localhost:3000.
 
 ## Todos
 
-- Path params
 - Path wildcards
 - Middleware short circuit
 - Config validator
