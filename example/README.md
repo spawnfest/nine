@@ -26,5 +26,6 @@ The site will be available at http://localhost:3000.
 
 The basic web page allows users to view and create todo posts.
 
-A json API is also available with the prefix `/api`. This API can be tested with `./test_api.sh`.
-The script will run a sequence of `curl` commands against the api.
+A json API is also available with the prefix `/api`. 
+
+This API can be tested with `./test_api.sh`. The script will run a sequence of `curl` commands against the api.
